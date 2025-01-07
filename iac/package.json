@@ -1,0 +1,19 @@
+{
+  "name": "iac",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "cdk deploy dyn-dns-easy --require-approval never"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.174.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.174.0"
+  }
+}

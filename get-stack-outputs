@@ -1,0 +1,3 @@
+#!/bin/bash
+
+aws cloudformation describe-stacks --stack-name dyn-dns-easy-prod --query "Stacks[0].Outputs" --output json | jq -r 'reduce .[] as $item ({}; . + {($item.OutputKey): $item.OutputValue})' > outputs.json

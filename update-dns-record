@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Ensure required environment variables are set
+if [ -z "$SECRET" ] || [ -z "$HOSTNAME" ] || [ -z "$API_FN_URL" ]; then
+  echo "Error: SECRET, HOSTNAME, and API_FN_URL environment variables must be set."
+  exit 1
+fi
+
+# Fetch the public IP address
+IP_ADDRESS=$(curl -s https://checkip.amazonaws.com)
+
+# Calculate the validation hash
+HASH_CHECK="${IP_ADDRESS}${HOSTNAME}${SECRET}"
+VALIDATION_HASH=$(echo -n "$HASH_CHECK" | openssl dgst -sha256 | awk '{print $2}')
+
+# Create the payload
+PAYLOAD=$(jq -n \
+          --arg ddns_hostname "$HOSTNAME" \
+          --arg validation_hash "$VALIDATION_HASH" \
+          '$ARGS.named'
+        )
+
+# Send the POST request
+curl -s -X POST "$API_FN_URL" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD"

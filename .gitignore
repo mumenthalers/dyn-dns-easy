@@ -1,0 +1,6 @@
+.idea
+dist/
+cdk.out/
+node_modules/
+/.env
+outputs.json

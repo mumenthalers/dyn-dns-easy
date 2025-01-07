@@ -1,0 +1,32 @@
+{
+  "name": "dyn-dns-easy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Easy Dynamic DNS with AWS Route 53, DynamoDB and Lambda",
+  "homepage": "https://github.com/mumenthalers/data#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mumenthalers/dyn-dns-easy.git"
+  },
+  "author": "Simon Mumenthaler",
+  "workspaces": [
+    "service",
+    "iac"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "deploy": "npx npm run -w iac deploy",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@types/node": "^22.10.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.3.0",
+    "prettier": "^3.4.2",
+    "sort-package-json": "^2.12.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

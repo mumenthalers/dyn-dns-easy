@@ -1,0 +1,4 @@
+'*':
+  - npx prettier --write --ignore-unknown
+'{,*/}package.json':
+  - npx sort-package-json
