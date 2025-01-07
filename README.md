@@ -72,5 +72,5 @@ npm run build && npm run deploy
 ```
 
 > you can use the provided [update-dns-record](client/update-dns-record.sh) script to automate this process\
-> just set the env variables `SECRET`, `HOSTNAME` and `API_FN_URL` and run the script\
+> just set the env variables `SECRET`, `HOSTNAME` and `API_URL` and run the script\
 > you can also use the [Dockerfile](./client/Dockerfile) to create an image and run it as a container

@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Ensure required environment variables are set
-if [ -z "$SECRET" ] || [ -z "$HOSTNAME" ] || [ -z "$API_FN_URL" ]; then
-  echo "Error: SECRET, HOSTNAME, and API_FN_URL environment variables must be set."
+if [ -z "$SECRET" ] || [ -z "$HOSTNAME" ] || [ -z "$API_URL" ]; then
+  echo "Error: SECRET, HOSTNAME, and API_URL environment variables must be set."
   exit 1
 fi
 
 # Fetch the public IP address
-IP_ADDRESS=$(curl -s $API_FN_URL)
+IP_ADDRESS=$(curl -s $API_URL)
 
 # Calculate the validation hash
 VALIDATION_HASH=$(echo -n "${IP_ADDRESS}${HOSTNAME}${SECRET}" | sha256sum | head -c 64)
@@ -20,6 +20,6 @@ PAYLOAD=$(jq -n \
         )
 
 # Send the POST request
-curl -s -X POST "$API_FN_URL" \
+curl -s -X POST "$API_URL" \
   -H "Content-Type: application/json" \
   -d "$PAYLOAD"
