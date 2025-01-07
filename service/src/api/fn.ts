@@ -21,32 +21,57 @@ export const handler: LambdaFunctionURLHandler<any> = async (
   ev: LambdaFunctionURLEvent,
 ): Promise<LambdaFunctionURLResult<any>> => {
   try {
-    if (ev.requestContext.http.method !== 'POST') {
-      return { statusCode: 405, body: 'Method Not Allowed' }
-    }
-    const payload = parseRequestPayload(ev)
-    const config = await readConfig(payload.ddnsHostname)
-
-    checkHash(config, payload)
-
-    const currentRecordValue = await getDnsRecordValue(config.zoneId, config.hostname, RRType.A)
-
-    if (currentRecordValue === payload.sourceIp) {
-      return {
-        statusCode: 200,
-        body: 'Your IP address matches the current Route53 DNS record.',
-      } satisfies LambdaFunctionURLResult
-    } else {
-      await upsertRecordValue(config.zoneId, config.hostname, config.recordTtl, RRType.A, payload.sourceIp)
-      return {
-        statusCode: 200,
-        body: `${payload.ddnsHostname} has been updated to ${payload.sourceIp}`,
-      }
+    switch (ev.requestContext.http.method) {
+      case 'GET':
+        return handleGet(ev)
+      case 'POST':
+        return await handlePost(ev)
+      default:
+        return { statusCode: 405, body: 'Method Not Allowed' }
     }
   } catch (error) {
     return {
       statusCode: 400,
       body: error instanceof Error ? error.message : 'unknown error',
+    }
+  }
+}
+
+/**
+ * simply returns the public ip address of the request
+ */
+function handleGet(ev: LambdaFunctionURLEvent): LambdaFunctionURLResult {
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'text/plain' },
+    body: ev.requestContext.http.sourceIp,
+  }
+}
+
+/**
+ * expects a JSON body containing the following properties:
+ * - ddns_hostname: the hostname to update
+ * - validation_hash: a sha256 hash of the source IP, hostname and secret
+ */
+async function handlePost(ev: LambdaFunctionURLEvent): Promise<LambdaFunctionURLResult> {
+  console.log('request from', ev.requestContext.http.userAgent)
+  const payload = parseRequestPayload(ev)
+  const config = await readConfig(payload.ddnsHostname)
+
+  checkHash(config, payload)
+
+  const currentRecordValue = await getDnsRecordValue(config.zoneId, config.hostname, RRType.A)
+
+  if (currentRecordValue === payload.sourceIp) {
+    return {
+      statusCode: 200,
+      body: 'Your IP address matches the current Route53 DNS record.',
+    } satisfies LambdaFunctionURLResult
+  } else {
+    await upsertRecordValue(config.zoneId, config.hostname, config.recordTtl, RRType.A, payload.sourceIp)
+    return {
+      statusCode: 200,
+      body: `${payload.ddnsHostname} has been updated to ${payload.sourceIp}`,
     }
   }
 }
