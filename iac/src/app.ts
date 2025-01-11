@@ -50,7 +50,7 @@ const lambdaRole = new Role(stack, 'api-lambda-role', {
       statements: [
         new PolicyStatement({
           effect: Effect.ALLOW,
-          resources: ['*'],
+          resources: [table.tableArn],
           actions: ['dynamodb:GetItem'],
         }),
       ],
