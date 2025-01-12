@@ -9,6 +9,7 @@ import {
 import type { LambdaFunctionURLHandler } from 'aws-lambda'
 import { LambdaFunctionURLEvent, LambdaFunctionURLResult } from 'aws-lambda/trigger/lambda-function-url.js'
 import crypto from 'node:crypto'
+import { assertNumber } from '../utils/assert-number.function.js'
 import { assertString } from '../utils/assert-string.function.js'
 import { pickPropsAssertDefined } from '../utils/pick-props-assert-defined.function.js'
 
@@ -58,7 +59,7 @@ async function handlePost(ev: LambdaFunctionURLEvent): Promise<LambdaFunctionURL
   const payload = parseRequestPayload(ev)
   const config = await readConfig(payload.ddnsHostname)
 
-  checkHash(config, payload)
+  checkRequestValidity(config, payload)
 
   const currentRecordValue = await getDnsRecordValue(config.zoneId, config.hostname, RRType.A)
 
@@ -72,12 +73,13 @@ async function handlePost(ev: LambdaFunctionURLEvent): Promise<LambdaFunctionURL
     return {
       statusCode: 200,
       body: `${payload.ddnsHostname} has been updated to ${payload.sourceIp}`,
-    }
+    } satisfies LambdaFunctionURLResult
   }
 }
 
 interface RequestPayload {
   sourceIp: string
+  timestamp: number
   ddnsHostname: string
   validationHash: string
 }
@@ -86,8 +88,10 @@ function parseRequestPayload(ev: LambdaFunctionURLEvent): RequestPayload {
   const payload = pickPropsAssertDefined(JSON.parse(ev.body ?? '{}') as Record<string, unknown>, [
     'validation_hash',
     'ddns_hostname',
+    'timestamp',
   ])
   return {
+    timestamp: assertNumber(payload.timestamp),
     sourceIp: ev.requestContext.http.sourceIp,
     ddnsHostname: assertString(payload.ddns_hostname),
     validationHash: assertString(payload.validation_hash),
@@ -106,21 +110,28 @@ async function readConfig(hostname: string): Promise<Config> {
     TableName: TABLE_NAME,
     Key: { hostname: { S: hostname } },
   })
-  const response = await dynamoDb.send(command)
+  const { Item: item } = await dynamoDb.send(command)
+  if (!item) {
+    throw new Error(`No configuration found for ${hostname}`)
+  }
   return {
-    hostname: assertString(response.Item?.hostname.S),
-    secret: assertString(response.Item?.secret.S),
-    zoneId: assertString(response.Item?.zoneId.S),
-    recordTtl: parseInt(assertString(response.Item?.recordTtl.N), 10),
+    hostname: assertString(item.hostname.S),
+    secret: assertString(item.secret.S),
+    zoneId: assertString(item.zoneId.S),
+    recordTtl: parseInt(assertString(item.recordTtl.N), 10),
   }
 }
 
-function checkHash(config: Config, payload: RequestPayload): void {
+export function checkRequestValidity(config: Config, payload: RequestPayload): void {
+  const ts = Math.floor(Date.now() / 1000)
+  if (ts - payload.timestamp > 5) {
+    throw new Error('Request is outdated.')
+  }
   if (!/^[0-9a-fA-F]{64}$/.test(payload.validationHash)) {
     throw new Error('You must pass a valid sha256 hash in the hash= argument.')
   }
 
-  const hashCheck = payload.sourceIp + config.hostname + config.secret
+  const hashCheck = payload.sourceIp + config.hostname + payload.timestamp + config.secret
   const calculatedHash = crypto.createHash('sha256').update(hashCheck).digest('hex')
 
   if (calculatedHash !== payload.validationHash) {
@@ -162,5 +173,8 @@ async function upsertRecordValue(
       ],
     },
   })
-  await route53.send(command)
+  const response = await route53.send(command)
+  if (!response.ChangeInfo) {
+    throw new Error('Failed to update DNS record')
+  }
 }
